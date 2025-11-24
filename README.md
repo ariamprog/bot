@@ -33,3 +33,22 @@
 
 ```bash
 pip install -r requirements.txt
+pip install gradio
+pip install google-generativeai
+pip install pandas numpy python-dotenv  # اختياري
+
+تأكد أن بيئة Python لديك مفعلة وأن الإصدار مناسب (>= 3.11).
+
+🚀 طريقة تشغيل المشروع
+
+انتقل إلى مجلد المشروع في الطرفية:
+
+cd C:\Users\user\OneDrive\Desktop\prog
+
+
+شغّل البوت:
+
+python bot.py
+
+
+سيتم فتح نافذة المتصفح تلقائيًا لتظهر واجهة دروب آمنة.
