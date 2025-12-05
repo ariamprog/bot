@@ -8,67 +8,70 @@ from datetime import datetime
 import google.generativeai as genai
 import json
 
-# ============================
-# 1️⃣ إعداد Gemini API (آمن عبر env var)
-# ============================
-GEMINI_API_KEY = "AIzaSyBd8j6f-SoI5EtC33zJUesGufU9fk9E7O8"
-# في بداية الكود، حول السطر 10
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-
+GEMINI_API_KEY = "AIzaSyCrOdJmn1rwb88BAApsTRtvAu247-Fpqpg" 
+GEMINI_MODEL = "gemini-1.5-flash"
 GEMINI_ENABLED = False
-try:
-    if GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-        GEMINI_ENABLED = True
-        print("✅ Gemini client initialized successfully.")
-    else:
-        print("⚠️ GEMINI_API_KEY not found. Gemini disabled.")
+
+# ------------------------------------
+# 2. تعريف دوال التهيئة والاتصال (قبل الاستدعاء)
+# ------------------------------------
+
+def setup_gemini():
+    """يهيئ عميل Gemini باستخدام المفتاح المعرّف."""
+    global GEMINI_ENABLED
+    try:
+        # يفضل دائماً استخدام os.environ لتعيين المفتاح
+        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY 
+
+        # التحقق من أن المفتاح غير فارغ أو لم يتم تركه كقيمة وهمية
+        if GEMINI_API_KEY and "AIzaSy" in GEMINI_API_KEY:
+            # هنا نستخدم genai.Client() مباشرة لتجربة الاتصال بدلاً من genai.configure()
+            # استدعاء العميل هنا سيؤكد أن المفتاح يعمل.
+            client = genai.Client() 
+            # إذا لم تظهر أخطاء، فالمفتاح صالح.
+            GEMINI_ENABLED = True
+            print("✅ Gemini client initialized successfully.")
+        else:
+            print("⚠️ GEMINI_API_KEY مفقود أو غير صحيح.")
+            GEMINI_ENABLED = False
+            
+    except Exception as e:
+        print(f"⚠️ فشل تهيئة Gemini: {e}")
         GEMINI_ENABLED = False
-except Exception as e:
-    print(f"⚠️ Failed to initialize Gemini client: {e}")
-    GEMINI_ENABLED = False
-
-
-
 
 def call_gemini_api(user_question, local_context_text=""):
+    """تتصل بنموذج Gemini بناءً على تعليمات النظام."""
     if not GEMINI_ENABLED:
-        return "Gemini API غير مفعّل."
+        return "⚠️ خدمة الذكاء الاصطناعي غير مفعلة حالياً (تأكد من مفتاح API)."
     try:
+        # 💡 تم تعديل التعليمات للسماح بالردود العامة عند عدم وجود سياق محلي
         system_instructions = (
             "أنت مساعد مرشد للكلية التقنية الرقمية بجدة. "
-            "أجيبي باختصار وباللغة العربية الفصحى المبسطة. "
-            "اعتمدي أولاً على المعلومات المحلية المدرجة (LOCAL_CONTEXT). "
-            "إذا كانت الإجابة موجودة فيها استخرجيها حرفيًا. "
-            "إذا لم تكن الإجابة موجودة، اعترفي بعدم المعرفة بلطف ووجهي المستخدم إلى طرق الحصول على المعلومة. "
-            "تجنبي التخمين والهلوسة. إجابات قصيرة ومباشرة."
+            "أجيبي باختصار و بلغة مبسطة ولطيفة. "
+            "**اعتمدي أولاً على المعلومات المحلية المدرجة (LOCAL_CONTEXT) واستخرجي الإجابة منها.** "
+            "**إذا لم تكن الإجابة موجودة في المعلومات المحلية، استخدمي معرفتك العامة للرد على السؤال.**" 
         )
 
         prompt = f"{system_instructions}\n\nLOCAL_CONTEXT:\n{local_context_text}\n\nالسؤال:\n{user_question}\n\nالرد:"
         
-        model = genai.GenerativeModel(GEMINI_MODEL)
-        
-        # التصحيح هنا: استخدام GenerationConfig
-        generation_config = genai.types.GenerationConfig(
-            temperature=0.2,
-            max_output_tokens=400
-        )
-        
-        response = model.generate_content(prompt, generation_config=generation_config)
+        # نستخدم genai.Client() داخل دالة الاتصال لضمان استخدام المفتاح المُهيأ
+        client = genai.Client()
+        response = client.models.generate_content(prompt, model=GEMINI_MODEL)
 
-        if hasattr(response, "text") and response.text:
+        if response and response.text:
             return response.text.strip()
-        # التعامل مع الحالات الأخرى للرد
-        if hasattr(response, "candidates") and response.candidates:
-            cand = response.candidates[0]
-            if hasattr(cand, "content") and hasattr(cand.content, "parts"):
-                 parts = [p.text for p in cand.content.parts if p.text]
-                 return " ".join(parts).strip()
-                 
-        return "⚠️ لم أحصل على إجابة مناسبة من Gemini."
+            
+        return "⚠️ لم أستطع توليد إجابة في الوقت الحالي."
     except Exception as e:
-        return f"حدث خطأ أثناء استدعاء Gemini: {e}" 
+        print(f"Gemini Error: {e}") 
+        return "اعتذر، واجهت مشكلة تقنية في الاتصال بالذكاء الاصطناعي."
 
+# ------------------------------------
+# 3. المنطق الرئيسي (استدعاء التهيئة)
+# ------------------------------------
+
+setup_gemini() # استدعاء الدالة لتشغيل التهيئة
+# ... بقية كود Gradio يبدأ هنا
 # رابط واتساب
 whatsapp_link = "https://wa.me/qr/YQ5U5MAW36FAP1"
 def launch_whatsapp_button():
@@ -76,7 +79,7 @@ def launch_whatsapp_button():
     return None
 
 # ============================
-# 2️⃣ بيانات المشروع
+# 2️⃣ البيانات وقواعد البحث
 # ============================
 PLACES = {
     "المسرح": {
@@ -150,10 +153,7 @@ ROUTES = {
     ("المكتبة", "الإرشاد الأكاديمي"): "🧭 من المكتبة اتجهي يمينًا، مكتب الإرشاد الأكاديمي بجانب المكتبة.",
     ("المكتبة", "ساحة المدربات"): "⬆️ من المكتبة اصعدي المصعد إلى الدور الثاني، ساحة المدربات أمامك.",
     ("الإرشاد الأكاديمي", "ساحة المدربات"): "⬆️ اصعدي المصعد إلى الدور الثاني، ساحة المدربات أمامك.", 
-    # ... (المسارات الموجودة)
     ("مكاتب الإدارة", "مكتب العميدة"): "⬆️ اصعدي المصعد إلى الدور الأول، مكتب العميدة بجانب مكاتب الإدارة.",
-
-    # طرق عكسية
     ("الإرشاد الأكاديمي", "المكتبة"): "⬇️ من مكتب الإرشاد عودي إلى المكتبة، تقع أمامك مباشرة.",
     ("ساحة المدربات", "المكتبة"): "⬇️ من ساحة المدربات اصعدي المصعد إلى الدور الأول، المكتبة أمامك.",
     ("ساحة المدربات", "الإرشاد الأكاديمي"): "⬇️ من ساحة المدربات استخدمي المصعد للنزول، مكتب الإرشاد على اليسار."
@@ -164,25 +164,25 @@ SECTION_MAP = {"A": "القسم الأول", "B": "القسم الثاني", "C"
 
 def detect_classroom(text):
     t = str(text).upper()
-    # تحسين لالتقاط الصيغ المختلفة مثل 1C3 أو 1-C-3
-    match = re.search(r"\b([1-3])\s*[-_]?\s*([A-C])\s*[-_]?\s*0*([0-9]{1,3})\b", t)
+    
+    match = re.search(r"\b([1-3])\s*[-]?\s*([A-C])\s*[-]?\s*0*([0-9]{1,3})\b", t)
     
     if match:
         floor, sec, num = match.groups()
         floor_name = FLOOR_MAP.get(floor, floor)
         
-        # منطق تحديد أقرب بوابة
-        nearest_gate = "بوابة 2 (بوابة الادارة)"  # الافتراضي لمعظم القاعات
+       
+        nearest_gate = "بوابة 2 (بوابة الادارة)"
         if sec == 'C' and floor == '1':
              nearest_gate = "بوابة 3 (قريبة من قسم C والعيادة)"
         elif sec in ['A', 'B']:
              nearest_gate = "بوابة الادارة"
 
-        return (f"📘 *تفاصيل القاعة:*\n"
+        return (f"📘 تفاصيل القاعة:\n"
                 f"- الدور: {floor_name}\n"
                 f"- القسم: {sec}\n"
                 f"- القاعة: {num}\n"
-                f"🚪 *أقرب مدخل:* {nearest_gate}.")
+                f"🚪 أقرب مدخل: {nearest_gate}.")
     return None
 
 # ============================
@@ -285,64 +285,43 @@ synonym_map = {
 
 }
 
-# ============================
-# دوال مساعدة
-# ============================
+
+
 def clean_text(text):
-    """
-    تنظيف النص لتسهيل المقارنة:
-    - تحويل كل الحروف إلى صغيرة
-    - إزالة التشكيل
-    - تحويل 'ة' إلى 'ه'
-    - إزالة علامات الترقيم
-    """
     text = str(text).lower()
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = text.replace("ة", "ه").replace("ى", "ي")
     return text
 
 def get_keyword(user_input):
-    """
-    البحث عن الكلمة المفتاحية الأقرب مع الأخطاء الإملائية:
-    - أولاً نحاول البحث بين المرادفات
-    - إذا لم نجد، نستخدم get_close_matches مع cutoff منخفض نسبيًا
-    """
     user_text = clean_text(user_input)
     tokens = user_text.split()
-
-    # تحقق من المرادفات أولاً
     for main_keyword, synonyms in synonym_map.items():
         terms = [main_keyword] + synonyms
         for t in terms:
-            t_clean = clean_text(t)
-            if any(t_clean == clean_text(tok) for tok in tokens):
+            if clean_text(t) in user_text: # تحسين البحث ليشمل الجمل
                 return main_keyword
-
-    # استخدام get_close_matches للبحث عن أقرب كلمة رئيسية
-    all_keys = list(ALL_FAQ_KEYWORDS.keys())
-    # تنظيف جميع المفاتيح بنفس طريقة clean_text
-    all_keys_clean = {clean_text(k): k for k in all_keys}
+    
+    all_keys_clean = {clean_text(k): k for k in ALL_FAQ_KEYWORDS.keys()}
     match = get_close_matches(user_text, list(all_keys_clean.keys()), n=1, cutoff=0.6)
     if match:
         return all_keys_clean[match[0]]
-    
     return None
+
 def get_welcome_message():
     hour = datetime.now().hour
     greeting = "صباح الخير 🌸" if hour < 12 else "مساء الخير 🌙"
-    return [{"role": "assistant", "content": f"""{greeting}! أهلاً بكِ في دروب آمنة 💙  
-أنا مرشدتك الآلية، أساعدك في التنقل داخل الكلية بسهولة ويسر 🌟  
-اسألي أي سؤال أو اختاري من الأزرار بالأسفل 👇"""}]
+    return [{"role": "assistant", "content": f"""**{greeting}! أهلاً بكِ في دروب آمنة 💙**
 
-def format_answer_with_images(answer_text):
-    return re.sub(r'\[صورة: ([\w_]+)\]', ' (يوجد هنا توضيح بالصورة)', answer_text)
+أنا مرشدتك الذكية، هنا لمساعدتك في الوصول لأي مكان داخل الكلية.
+استخدمي الأزرار بالأسفل 👇 أو اسألي عما تبحثين عنه."""}]
 
 def clear_all():
-    welcome_message = get_welcome_message()
-    return welcome_message, welcome_message, {"state": "NORMAL", "last_option_key": None, "current_location": None}, ""
+    wm = get_welcome_message()
+    return wm, wm, {"state": "NORMAL", "last_option_key": None}, ""
 
 # ============================
-# دالة chat
+# منطق المحادثة (CHAT LOGIC)
 # ============================
 def chat(message, history, user_session):
     try:
@@ -355,197 +334,203 @@ def chat(message, history, user_session):
 
         history.append({"role": "user", "content": user_message})
 
-        # 1. الأولوية للقاعات (تم تحديث الدالة لتعطي البوابة)
+        # 1. كشف القاعات
         classroom_info = detect_classroom(user_message)
         if classroom_info:
             history.append({"role": "assistant", "content": classroom_info})
             return history, history, user_session, ""
 
-        # 2. الخيارات الرقمية
+        # 2. التعامل مع الخيارات الرقمية
         num_digits = re.sub(r"\D", "", user_message)
         if user_session.get("last_option_key") and num_digits.isdigit():
             last_key = user_session["last_option_key"]
             if last_key in NUMBER_TO_OPTION and num_digits in NUMBER_TO_OPTION[last_key]:
-                chosen_option = NUMBER_TO_OPTION[last_key][num_digits]
-                answer = ALL_DETAILS.get(chosen_option, "عذرًا، لا توجد تفاصيل.")
+                chosen = NUMBER_TO_OPTION[last_key][num_digits]
+                answer = ALL_DETAILS.get(chosen, "عذرًا، لا توجد تفاصيل.")
                 user_session["last_option_key"] = None
-                history.append({"role": "assistant", "content": format_answer_with_images(answer)})
+                history.append({"role": "assistant", "content": answer})
                 return history, history, user_session, ""
 
-        # 3. تحليل الكلمات المفتاحية
+        # 3. البحث بالكلمات المفتاحية
         keyword = get_keyword(user_message)
-        if keyword:
-            final_answer = None
-            
-            # 1. البحث في قاموس الإجابات العامة (FAQ) أولاً
-            if keyword in faq:
-                final_answer = faq[keyword]
-
-            # 2. إذا لم نجد إجابة في FAQ، نبحث في تفاصيل الأماكن (ALL_DETAILS)
-            if final_answer is None and keyword in ALL_DETAILS:
-                detail = ALL_DETAILS[keyword]
-                
-                if isinstance(detail, dict) and "desc" in detail:
-                    final_answer = detail["desc"]
-                elif isinstance(detail, str):
-                     final_answer = detail
-        # التعامل مع القوائم
+        
+        # إذا كان خيار متعدد
         if keyword in PLACE_OPTIONS:
             user_session["last_option_key"] = keyword
-            options_text = "\n".join([f"*{i+1}.* {opt}" for i, opt in enumerate(PLACE_OPTIONS[keyword]["options"])])
-            answer = f"{PLACE_OPTIONS[keyword]['text']}\n{options_text}"
+            options_text = "\n".join([f"**{i+1}.** {opt}" for i, opt in enumerate(PLACE_OPTIONS[keyword]["options"])])
+            answer = f"{PLACE_OPTIONS[keyword]['text']}\n\n{options_text}"
             history.append({"role": "assistant", "content": answer})
             return history, history, user_session, ""
-
-        # التعامل مع الأسئلة المباشرة (مثل "وين الأمن")
-        if keyword and (keyword in ALL_DETAILS or keyword in faq):
-            answer = ALL_DETAILS.get(keyword) or faq.get(keyword)
-            history.append({"role": "assistant", "content": format_answer_with_images(answer)})
-            user_session["last_option_key"] = None
-            return history, history, user_session, ""
-
-        # 4. نظام المسارات (Routing)
-        def extract_locations(text, synonyms_map):
-            text = clean_text(text)
-            found = []
-            # ترتيب المفاتيح بالأطول أولاً لتجنب تداخل الكلمات (مثل كافتيريا وكوفي)
-            sorted_keys = sorted(synonyms_map.keys(), key=len, reverse=True)
-            for key in sorted_keys:
-                words = [key] + synonyms_map[key]
-                for w in words:
-                    if clean_text(w) in text:
-                        if key not in found:
-                            found.append(key)
-                        break # وجدنا مرادف لهذا المفتاح، ننتقل للمفتاح التالي
-            return found
-
-        places = extract_locations(user_message, synonym_map)
-
-        # إذا ذكر مكانين مختلفين
-        if len(places) >= 2 and places[0] != places[1]:
-            start, end = places[0], places[1]
-            route = ROUTES.get((start, end)) or ROUTES.get((end, start))
-            if route:
-                answer = f"🗺️ *الطريق من {start} إلى {end}:*\n{route}"
-            else:
-                answer = f"🚫 لا يوجد مسار مسجل مباشرة بين {start} و {end}."
-            history.append({"role": "assistant", "content": answer})
-            return history, history, user_session, ""
-
-        # إذا ذكر مكان واحد (وليس سؤال "أين")
-        if len(places) == 1:
-            loc = places[0]
-            # هنا نعالج مشكلة "أبي مسار للكوفي" والمستخدم لم يحدد البداية
-            if "طريق" in user_message or "مسار" in user_message or "وصلني" in user_message:
-                 answer = f"📍 لكي أصف لك الطريق إلى *{loc}*، يرجى إخباري بمكانك الحالي (مثال: من البوابة 1 إلى {loc})."
-            else:
-                 # مجرد وصف للمكان
-                 desc = PLACES.get(loc, {}).get("desc", ALL_DETAILS.get(loc, f"أنت تسأل عن {loc}."))
-                 answer = f"{desc}"
             
-            history.append({"role": "assistant", "content": format_answer_with_images(answer)})
+        # إذا كانت معلومة مباشرة
+        if keyword and keyword in ALL_FAQ_KEYWORDS:
+            answer = ALL_FAQ_KEYWORDS[keyword]
+            user_session["last_option_key"] = None
+            history.append({"role": "assistant", "content": answer})
             return history, history, user_session, ""
 
-        # 5. استدعاء Gemini (لأي شيء غير معروف)
+        # 4. استخدام Gemini (إذا لم نجد إجابة محددة)
         if GEMINI_ENABLED:
-            local_context = "\n".join([f"{k}: {v}" for k, v in list(ALL_FAQ_KEYWORDS.items())[:25]])
+            local_context = "\n".join([f"{k}: {v}" for k, v in list(ALL_FAQ_KEYWORDS.items())[:30]])
             gemini_response = call_gemini_api(user_message, local_context_text=local_context)
-            answer = f"🤖 {gemini_response}"
+            history.append({"role": "assistant", "content": f"🤖 {gemini_response}"})
         else:
-            answer = "⚠️ عذرًا، لم أفهم السؤال جيدًا. يرجى التوضيح أكثر."
+            history.append({"role": "assistant", "content": "⚠️ عذرًا، لم أفهم السؤال جيدًا، وخدمة الذكاء الاصطناعي غير مفعلة حالياً."})
 
-        history.append({"role": "assistant", "content": answer})
         return history, history, user_session, ""
 
     except Exception as e:
-        history.append({"role": "assistant", "content": f"⚠️ خطأ: {e}"})
+        history.append({"role": "assistant", "content": f"⚠️ حدث خطأ غير متوقع: {e}"})
         return history, history, user_session, ""
 
-
 # ============================
-# واجهة GRADIO
+# تصميم الواجهة (THEME & UI)
 # ============================
-app = gr.Blocks(title="دروب آمنة - مرشد الكلية الذكي")
 
-with app:
+# تأكدي أن custom_css يحتوي على كل هذا:
+custom_css = """
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
 
-    gr.HTML("""
-    <style>
-    :root {
-        --blue-primary: #004aad;
-        --blue-light: #e6f0ff;
-        --blue-medium: #b3d1ff;
-    }
-    .gradio-container { font-family: 'Cairo', sans-serif; background: var(--blue-light) !important; }
-    .start-btn { background-color: var(--blue-primary) !important; color: white !important; border-radius: 20px; font-size: 20px; padding: 12px 50px; cursor: pointer; }
-    .blue-btn { background-color: var(--blue-medium) !important; color: var(--blue-primary) !important; border-radius: 16px; border: 1px solid var(--blue-primary); font-weight: bold; }
-    .primary-btn { background-color: var(--blue-primary) !important; color: white !important; border-radius: 16px; }
-    .secondary-btn { background-color: #f0f0f0 !important; color: #333 !important; border-radius: 16px; border: 1px solid #ccc; }
-    .share-btn { background-color: rgb(6,40,62) !important; color: white !important; border-radius: 16px; }
-    .gradio-container .message.bot { background-color: #fff !important; border: 1px solid var(--blue-medium) !important; }
-    .gradio-container .message.user { background-color: var(--blue-medium) !important; color: var(--blue-primary) !important; }
-    </style>
-    """)
+.gradio-container { 
+    font-family: 'Cairo', sans-serif !important; 
+    /* خلفية الواجهة الرئيسية - رمادي غامق/أسود خفيف */
+    background-color: #383838; 
+}
 
-    # Intro
-    with gr.Column(visible=True) as intro_box:
+/* تنسيق الخلفية البيضاء داخل الواجهة */
+.gradio-container, .gr-box {
+    background-color: #F5F5F5 !important;
+}
+
+/* الأزرار الرئيسية (اللون الأساسي للشعار) */
+.primary-btn, button.primary {
+    background-color: #1A5499 !important; /* أزرق داكن من الشعار */
+    color: white !important;
+    border: none !important;
+    font-weight: 700 !important;
+}
+.primary-btn:hover, button.primary:hover {
+    background-color: #123d72 !important; /* أغمق قليلاً عند التمرير */
+}
+
+/* الأزرار الفرعية (لون أيقونة الشعار الفاتح) */
+.secondary-btn, button.secondary {
+    background-color: #E0E0E0 !important; /* خلفية فاتحة */
+    color: #1A5499 !important; /* نص أزرق غامق */
+    border: 1px solid #CCCCCC !important;
+}
+.secondary-btn:hover, button.secondary:hover {
+    background-color: #D3D3D3 !important;
+}
+
+/* لون العناوين والرموز (الأزرق الغامق) */
+h1, h2, h3, h4, .gr-label {
+    color: #1A5499 !important;
+}
+
+/* خلفية حقول الإدخال */
+.gr-text-input, input[type="text"] {
+    background-color: #FFFFFF !important;
+    border: 1px solid #CCCCCC !important;
+}
+
+.start-btn { 
+    font-size: 1.2em !important; 
+    padding: 10px 30px !important; 
+}
+
+footer { visibility: hidden; }
+"""
+
+# --------------------------------------------------------------------
+# 1. بداية واجهة Blocks (المستوى الأول من الإزاحة يبدأ من هنا)
+# --------------------------------------------------------------------
+with gr.Blocks(title="دروب آمنة") as app:
+
+    # --- صفحة البداية --- (الإزاحة: 1)
+    with gr.Column(visible=True, elem_id="intro_box") as intro_box:
         gr.Markdown("""
-        <div style="text-align:center; padding: 40px; background-color: #fff; border-radius: 20px;">
-            <h1 style='color: #004aad;'>💙 دروب آمنة - الكلية التقنية الرقمية بجدة 💙</h1>
-            <p>
-            مرحبًا بك في رحاب الكلية التقنية الرقمية، حيث ندمج التقنية مع الإبداع لتطوير مهاراتك ومواهبك.  
+<div style="text-align:center; padding: 50px 20px;">
+    <h1 style='font-size: 3em; margin-bottom: 10px;'>💙 دروب آمنة</h1>
+    <h3 style='opacity: 0.8;'>الكلية التقنية الرقمية بجدة</h3>
+    <p style="font-size: 1.1em; max-width: 600px; margin: 20px auto; line-height: 1.6;">
+    مرحبًا بك في رحاب الكلية التقنية الرقمية، حيث ندمج التقنية مع الإبداع لتطوير مهاراتك ومواهبك.
             هنا ستجدين بيئة تعليمية حديثة، ومرافق مهيأة لدعم جميع الطلاب، مع سهولة الوصول والتنقل داخل المبنى.  
             استكشفي خدماتنا واسألي أي شيء عن الكلية، وسأكون مرشدك الذكي للإجابة عن استفساراتك! 🚀
-            </p>
-        </div>
-        """)
-        start_btn = gr.Button("ابدئي الآن 🚀", elem_classes="start-btn")
+    </p>
+</div>
+""")
 
-    # Bot UI
+        with gr.Row():
+            with gr.Column(scale=1): pass
+            with gr.Column(scale=1):
+                start_btn = gr.Button("ابدئي الآن 🚀", variant="primary", elem_classes="start-btn")
+            with gr.Column(scale=1): pass
+
+    # --- صفحة المحادثة ---
     with gr.Column(visible=False) as bot_box:
-        gr.Markdown("<h2 style='text-align:center;color:#004aad;'>💬 دروب آمنة - المساعدة الذكية 💬</h2>")
-
+        
+        with gr.Row():
+            gr.Markdown("### 💬 المساعدة الذكية")
+        
         user_session = gr.State({"state": "NORMAL", "last_option_key": None})
         chatbot_history = gr.State(get_welcome_message())
-        chatbot = gr.Chatbot(value=get_welcome_message(), label="المحادثة", render_markdown=True)
-        message = gr.Textbox(label="اكتبي رسالتك هنا...", placeholder="اسألي أي شيء...", lines=1)
+        
+        chatbot = gr.Chatbot(
+            value=get_welcome_message(),
+            label="الدردشة",
+            height=450,
+            elem_classes="chat-window"
+        )
 
-        # أزرار الخيارات الرئيسية
+        # أزرار الوصول السريع
+        gr.Markdown("##### ⚡ خيارات سريعة")
         with gr.Row():
-            main_btns = [
-                gr.Button("مواقف", elem_classes="blue-btn"), 
-                gr.Button("بوابات", elem_classes="blue-btn"), 
-                gr.Button("مطعم وكوفي", elem_classes="blue-btn"), 
-                gr.Button("العيادة", elem_classes="blue-btn"), 
-                gr.Button("المكتبة", elem_classes="blue-btn"), 
-                gr.Button("ساحة المدربات", elem_classes="blue-btn"), 
-                gr.Button("مساعدة", elem_classes="blue-btn")
-            ]
-
-        # أزرار إرسال ومسح وواتساب
+            btn_parking = gr.Button("🚗 مواقف")
+            btn_gates = gr.Button("🚪 بوابات")
+            btn_cafe = gr.Button("☕ مطعم وكوفي")
+            btn_clinic = gr.Button("🏥 العيادة")
         with gr.Row():
-            send_button = gr.Button("إرسال", elem_classes="primary-btn")
-            clear_btn = gr.Button("🗑️ مسح", elem_classes="secondary-btn")
-            whatsapp_button = gr.Button("📲 واتساب", elem_classes="share-btn")
+            btn_library = gr.Button("📚 المكتبة")
+            btn_trainers = gr.Button("👩‍🏫 ساحة المدربات")
+            btn_help = gr.Button("❓ مساعدة")
 
-        outputs_list_chat = [chatbot, chatbot_history, user_session, message]
+        # خانة الإدخال
+        with gr.Row():
+            message = gr.Textbox(
+                placeholder="اكتبي سؤالك هنا أو رقم القاعة...",
+                show_label=False,
+                scale=4,
+                lines=1
+            )
+            send_button = gr.Button("إرسال ➤", variant="primary", scale=1)
 
-        # ربط الأزرار بالدوال
-        send_button.click(fn=chat, inputs=[message, chatbot_history, user_session],
-                          outputs=outputs_list_chat)
-        message.submit(fn=chat, inputs=[message, chatbot_history, user_session],
-                       outputs=outputs_list_chat)
-        clear_btn.click(fn=clear_all, inputs=None, outputs=outputs_list_chat)
-        whatsapp_button.click(fn=launch_whatsapp_button, inputs=None, outputs=None)
+        # أدوات إضافية
+        with gr.Row():
+            clear_btn = gr.Button("🗑️ محادثة جديدة")
+            whatsapp_button = gr.Button("📲 تواصل واتساب")
 
-        for btn in main_btns:
-            btn.click(lambda v=btn: v.value, outputs=[message], queue=False).then(
-                chat, [message, chatbot_history, user_session], outputs_list_chat
+        # --- ربط الأحداث (Events) ---
+        
+        def respond(msg, hist, sess):
+            h, _, s, _ = chat(msg, hist, sess)
+            return h, h, s, ""
+
+        message.submit(respond, [message, chatbot_history, user_session], [chatbot, chatbot_history, user_session, message])
+        send_button.click(respond, [message, chatbot_history, user_session], [chatbot, chatbot_history, user_session, message])
+        
+        for btn in [btn_parking, btn_gates, btn_cafe, btn_clinic, btn_library, btn_trainers, btn_help]:
+            btn.click(lambda x: x, inputs=[btn], outputs=[message]).then(
+                respond, [message, chatbot_history, user_session], [chatbot, chatbot_history, user_session, message]
             )
 
-    # ربط زر البداية لإخفاء intro وإظهار bot UI
-    start_btn.click(fn=lambda: (gr.update(visible=False), gr.update(visible=True)),
-                    outputs=[intro_box, bot_box])
+        clear_btn.click(clear_all, None, [chatbot, chatbot_history, user_session, message])
+        whatsapp_button.click(launch_whatsapp_button, None, None)
+
+        start_btn.click(
+            lambda: (gr.update(visible=False), gr.update(visible=True)),
+            None, [intro_box, bot_box]
+        )
 
 if __name__ == "__main__":
-    app.launch(share=True)
+    app.launch(share=True, css=custom_css)
