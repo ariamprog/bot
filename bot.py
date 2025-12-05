@@ -5,7 +5,7 @@ import string
 import re
 from difflib import get_close_matches
 from datetime import datetime
-import google.generativeai as genai
+from google import genai
 import json
 
 GEMINI_API_KEY = "AIzaSyCrOdJmn1rwb88BAApsTRtvAu247-Fpqpg" 
