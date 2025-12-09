@@ -57,7 +57,7 @@
 
 
 
-```bash
+
 
 pip install -r requirements.txt
 
@@ -88,83 +88,8 @@ pip install pandas numpy python-dotenv  # اختياري
 # ملف .env
 GEMINI_API_KEY=المفتاح_الجديد_الخاص_بك_هنا
 
-1
----
 
-
-
-## ⚡ تثبيت المكتبات
-
-
-
-```bash
-
-pip install -r requirements.txt
-
-pip install gradio
-
-pip install google-generativeai
-
-pip install gradio google-generativeai python-dotenv
-
-pip install pandas numpy python-dotenv  # اختياري
-
-
-
-تأكد أن بيئة Python لديك مفعلة وأن الإصدار مناسب (>= 3.11).
-
-1. **لغة البرمجة**: Python 3.11 أو أعلى  
-
-2. **المكتبات الأساسية**:
-
-   - `gradio` - لإنشاء واجهة المستخدم الرسومية للويب/تطبيق المساعد.  
-
-   - `google-generativeai python-dotenv` - للتفاعل مع نموذج Gemini.
-
-   - `re` و `string` و `difflib` و `datetime` - للمعالجة النصية والتحقق من المدخلات.  
-
-3. **بيئة التشغيل**:  
-
-   - Windows / Mac / Linux  
-
-   - يمكن تشغيله محليًا عبر Python أو رفعه على سيرفر ويب لدعم الوصول العام.  
-
-4. **ملفات المشروع**:  
-
-   - `bot.py` → الكود الرئيسي للبوت.  
-
-   - `README.md` → مستند الشرح هذا.  
-
-5. **ملف المكتبات**:  
-
-   - `requirements.txt` → لتثبيت جميع المكتبات مرة واحدة.
-
-
-
----
-
-
-
-## ⚡ تثبيت المكتبات
-
-
-
-```bash
-
-pip install -r requirements.txt
-
-pip install gradio
-
-pip install google-generativeai
-
-pip install gradio google-generativeai python-dotenv
-
-pip install pandas numpy python-dotenv  # اختياري
-
-
-
-تأكد أن بيئة Python لديك مفعلة وأن الإصدار مناسب (>= 3.11).
-
+--
 ---
 
 ### 🚀 طريقة تشغيل المشروع
