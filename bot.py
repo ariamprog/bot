@@ -5,73 +5,52 @@ import string
 import re
 from difflib import get_close_matches
 from datetime import datetime
-from google import genai
 import json
+import google.generativeai as genai
 
-GEMINI_API_KEY = "AIzaSyCrOdJmn1rwb88BAApsTRtvAu247-Fpqpg" 
-GEMINI_MODEL = "gemini-1.5-flash"
-GEMINI_ENABLED = False
+# محاولة تحميل ملف .env لو كنا نشتغل محلياً
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass # نتجاهل الخطأ لو المكتبة غير موجودة (مثل حالة Hugging Face أحياناً)
 
-# ------------------------------------
-# 2. تعريف دوال التهيئة والاتصال (قبل الاستدعاء)
-# ------------------------------------
+# جلب المفتاح من متغيرات النظام (البيئة)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-def setup_gemini():
-    """يهيئ عميل Gemini باستخدام المفتاح المعرّف."""
-    global GEMINI_ENABLED
-    try:
-        # يفضل دائماً استخدام os.environ لتعيين المفتاح
-        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY 
-
-        # التحقق من أن المفتاح غير فارغ أو لم يتم تركه كقيمة وهمية
-        if GEMINI_API_KEY and "AIzaSy" in GEMINI_API_KEY:
-            # هنا نستخدم genai.Client() مباشرة لتجربة الاتصال بدلاً من genai.configure()
-            # استدعاء العميل هنا سيؤكد أن المفتاح يعمل.
-            client = genai.Client() 
-            # إذا لم تظهر أخطاء، فالمفتاح صالح.
-            GEMINI_ENABLED = True
-            print("✅ Gemini client initialized successfully.")
-        else:
-            print("⚠️ GEMINI_API_KEY مفقود أو غير صحيح.")
-            GEMINI_ENABLED = False
-            
-    except Exception as e:
-        print(f"⚠️ فشل تهيئة Gemini: {e}")
+try:
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+        GEMINI_MODEL = "gemini-2.5-flash"
+        GEMINI_ENABLED = True
+        print("✅ Gemini client initialized successfully.")
+    else:
         GEMINI_ENABLED = False
+        print("⚠️ Warning: GEMINI_API_KEY not found in environment variables.")
+except Exception as e:
+    print(f"⚠️ Failed to initialize Gemini client: {e}")
+    GEMINI_ENABLED = False
 
-def call_gemini_api(user_question, local_context_text=""):
-    """تتصل بنموذج Gemini بناءً على تعليمات النظام."""
+def call_gemini_api(prompt, local_context_text=""):
     if not GEMINI_ENABLED:
-        return "⚠️ خدمة الذكاء الاصطناعي غير مفعلة حالياً (تأكد من مفتاح API)."
+        return "Gemini API غير مفعّل."
     try:
-        # 💡 تم تعديل التعليمات للسماح بالردود العامة عند عدم وجود سياق محلي
-        system_instructions = (
-            "أنت مساعد مرشد للكلية التقنية الرقمية بجدة. "
-            "أجيبي باختصار و بلغة مبسطة ولطيفة. "
-            "**اعتمدي أولاً على المعلومات المحلية المدرجة (LOCAL_CONTEXT) واستخرجي الإجابة منها.** "
-            "**إذا لم تكن الإجابة موجودة في المعلومات المحلية، استخدمي معرفتك العامة للرد على السؤال.**" 
-        )
-
-        prompt = f"{system_instructions}\n\nLOCAL_CONTEXT:\n{local_context_text}\n\nالسؤال:\n{user_question}\n\nالرد:"
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        # دمج المعلومات مع السؤال ليعرف الجيمناي تفاصيل الكلية
+        full_prompt = f"""
+        أنتِ مرشدة ذكية في الكلية التقنية الرقمية. استخدمي المعلومات التالية للإجابة:
+        {local_context_text}
         
-        # نستخدم genai.Client() داخل دالة الاتصال لضمان استخدام المفتاح المُهيأ
-        client = genai.Client()
-        response = client.models.generate_content(prompt, model=GEMINI_MODEL)
-
-        if response and response.text:
-            return response.text.strip()
-            
-        return "⚠️ لم أستطع توليد إجابة في الوقت الحالي."
+        السؤال: {prompt}
+        """
+        response = model.generate_content(full_prompt)
+        return response.text
     except Exception as e:
-        print(f"Gemini Error: {e}") 
-        return "اعتذر، واجهت مشكلة تقنية في الاتصال بالذكاء الاصطناعي."
+        return f"حدث خطأ أثناء استدعاء Gemini: {e}"
 
-# ------------------------------------
-# 3. المنطق الرئيسي (استدعاء التهيئة)
-# ------------------------------------
 
-setup_gemini() # استدعاء الدالة لتشغيل التهيئة
-# ... بقية كود Gradio يبدأ هنا
+
+
 # رابط واتساب
 whatsapp_link = "https://wa.me/qr/YQ5U5MAW36FAP1"
 def launch_whatsapp_button():
