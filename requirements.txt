@@ -1,2 +1,5 @@
-gradio>=4.9
-google-generativeai
+pip install -r requirements.txt
+pip install gradio
+pip install google-generativeai
+pip install gradio google-generativeai python-dotenv
+pip install pandas numpy python-dotenv
