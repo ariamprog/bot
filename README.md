@@ -29,7 +29,7 @@
 
    - `google-generativeai python-dotenv` - للتفاعل مع نموذج Gemini.
 
-   - `re` و `string` و `difflib` و `datetime` و os` - للمعالجة النصية والتحقق من المدخلات.  
+   - `re` و `string` و `difflib` و `datetime` و `os` - للمعالجة النصية والتحقق من المدخلات.  
 
 3. **بيئة التشغيل**:  
 
